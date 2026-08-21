@@ -160,27 +160,35 @@
         let initialTime = 180;
         let timeLeft = 180;
         let timerId = null;
+        let audioCtx = null;
+
+        // オーディオの初期化（ユーザー操作後に呼び出す必要がある）
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
 
         function playWhistle() {
-            try {
-                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                function playTone(startTime, duration) {
-                    const osc = audioCtx.createOscillator();
-                    const gain = audioCtx.createGain();
-                    osc.type = 'sine';
-                    osc.frequency.setValueAtTime(2500, audioCtx.currentTime + startTime);
-                    gain.gain.setValueAtTime(0.2, audioCtx.currentTime + startTime);
-                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + startTime + duration);
-                    osc.connect(gain);
-                    gain.connect(audioCtx.destination);
-                    osc.start(audioCtx.currentTime + startTime);
-                    osc.stop(audioCtx.currentTime + startTime + duration);
-                }
-                playTone(0, 0.2);
-                playTone(0.25, 0.4);
-            } catch (e) {
-                console.log("Audio not supported");
+            if (!audioCtx) return;
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
             }
+
+            function playTone(startTime, duration) {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(2500, audioCtx.currentTime + startTime);
+                gain.gain.setValueAtTime(0.2, audioCtx.currentTime + startTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + startTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(audioCtx.currentTime + startTime);
+                osc.stop(audioCtx.currentTime + startTime + duration);
+            }
+            playTone(0, 0.2);
+            playTone(0.25, 0.4);
         }
 
         function updateTimerDisplay() {
@@ -205,6 +213,7 @@
 
         function startTimer() {
             if (timerId !== null) return;
+            initAudio(); // 音を鳴らせる状態にする
             document.getElementById('settingBox').style.display = 'none';
             timerId = setInterval(() => {
                 if (timeLeft > 0) {
