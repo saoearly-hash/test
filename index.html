@@ -113,6 +113,12 @@
         }
         .score-btns button.plus { background-color: #2196F3; }
         .score-btns button.minus { background-color: #e91e63; }
+        .reset-score-btn {
+            margin-top: 10px;
+            font-size: 0.8rem;
+            padding: 5px 10px;
+            background-color: #444;
+        }
     </style>
 </head>
 <body>
@@ -145,6 +151,7 @@
                 <button class="minus" onclick="changeScore('A', -1)">-</button>
                 <button class="plus" onclick="changeScore('A', 1)">+</button>
             </div>
+            <button class="reset-score-btn" onclick="resetScore('A')">リセット</button>
         </div>
         <div class="team" style="border-color: #e91e63;">
             <h2 id="teamNameB" style="color: #e91e63;" onclick="editTeamName('B')">TEAM B ✏️</h2>
@@ -153,6 +160,7 @@
                 <button class="minus" onclick="changeScore('B', -1)">-</button>
                 <button class="plus" onclick="changeScore('B', 1)">+</button>
             </div>
+            <button class="reset-score-btn" onclick="resetScore('B')">リセット</button>
         </div>
     </div>
 
@@ -169,7 +177,6 @@
         }
 
         function playWhistle() {
-            // 音を鳴らす処理
             if (audioCtx) {
                 if (audioCtx.state === 'suspended') {
                     audioCtx.resume();
@@ -191,7 +198,6 @@
                 playTone(0.25, 0.4);
             }
 
-            // スマホ振動（バイブレーション）処理
             if ("vibrate" in navigator) {
                 navigator.vibrate([200, 100, 400]);
             }
@@ -251,6 +257,13 @@
             scores[team] += value;
             if (scores[team] < 0) scores[team] = 0;
             document.getElementById('score' + team).innerText = scores[team];
+        }
+
+        function resetScore(team) {
+            if (confirm(team + 'チームの得点をリセットしますか？')) {
+                scores[team] = 0;
+                document.getElementById('score' + team).innerText = 0;
+            }
         }
 
         function editTeamName(team) {
