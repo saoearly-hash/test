@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>スポーツ用タイマー＆得点盤</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            background-color: #111;
+            color: #fff;
+            margin: 0;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        .timer-container {
+            font-size: 3.5rem;
+            font-weight: bold;
+            margin: 10px 0;
+            background: #222;
+            padding: 10px 30px;
+            border-radius: 10px;
+            border: 2px solid #444;
+            letter-spacing: 2px;
+        }
+        .time-setting {
+            background: #222;
+            padding: 10px 15px;
+            border-radius: 10px;
+            border: 1px solid #444;
+            margin-bottom: 15px;
+            width: 100%;
+            max-width: 300px;
+            text-align: center;
+        }
+        .time-setting label {
+            font-size: 0.9rem;
+            display: block;
+            margin-bottom: 5px;
+            color: #aaa;
+        }
+        .time-setting input[type="range"] {
+            width: 100%;
+            cursor: pointer;
+        }
+        .time-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            color: #ddd;
+            margin-top: 2px;
+        }
+        .timer-btns {
+            margin-bottom: 25px;
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            font-size: 1.1rem;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn-start { background-color: #4CAF50; color: white; }
+        .btn-stop { background-color: #f44336; color: white; }
+        .btn-reset { background-color: #777; color: white; }
+        .scoreboard {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            max-width: 500px;
+            gap: 15px;
+        }
+        .team {
+            flex: 1;
+            background: #222;
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            border: 2px solid #444;
+        }
+        .team h2 {
+            margin: 0 0 10px 0;
+            font-size: 1.2rem;
+            cursor: pointer;
+            border-bottom: 1px dashed #666;
+            padding-bottom: 5px;
+        }
+        .score {
+            font-size: 5rem;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .score-btns {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+        .score-btns button {
+            width: 45px;
+            height: 45px;
+            padding: 0;
+            font-size: 1.5rem;
+            background-color: #333;
+            color: white;
+            border-radius: 50%;
+        }
+        .score-btns button.plus { background-color: #2196F3; }
+        .score-btns button.minus { background-color: #e91e63; }
+    </style>
+</head>
+<body>
+
+    <div class="timer-container" id="timerDisplay">03:00</div>
+
+    <div class="time-setting" id="settingBox">
+        <label>⏱ タイマー時間設定</label>
+        <div style="margin-bottom: 8px;">
+            <input type="range" id="minSlider" min="0" max="10" value="3" oninput="changeTimeFromSlider()">
+            <div class="time-labels"><span>分: <span id="minVal">3</span>分</span></div>
+        </div>
+        <div>
+            <input type="range" id="secSlider" min="0" max="59" step="5" value="0" oninput="changeTimeFromSlider()">
+            <div class="time-labels"><span>秒: <span id="secVal">00</span>秒</span></div>
+        </div>
+    </div>
+
+    <div class="timer-btns">
+        <button class="btn-start" onclick="startTimer()">スタート</button>
+        <button class="btn-stop" onclick="stopTimer()">ストップ</button>
+        <button class="btn-reset" onclick="resetTimer()">リセット</button>
+    </div>
+
+    <div class="scoreboard">
+        <div class="team" style="border-color: #2196F3;">
+            <h2 id="teamNameA" style="color: #2196F3;" onclick="editTeamName('A')">TEAM A ✏️</h2>
+            <div class="score" id="scoreA">0</div>
+            <div class="score-btns">
+                <button class="minus" onclick="changeScore('A', -1)">-</button>
+                <button class="plus" onclick="changeScore('A', 1)">+</button>
+            </div>
+        </div>
+        <div class="team" style="border-color: #e91e63;">
+            <h2 id="teamNameB" style="color: #e91e63;" onclick="editTeamName('B')">TEAM B ✏️</h2>
+            <div class="score" id="scoreB">0</div>
+            <div class="score-btns">
+                <button class="minus" onclick="changeScore('B', -1)">-</button>
+                <button class="plus" onclick="changeScore('B', 1)">+</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let initialTime = 180;
+        let timeLeft = 180;
+        let timerId = null;
+
+        function playWhistle() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                function playTone(startTime, duration) {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(2500, audioCtx.currentTime + startTime);
+                    gain.gain.setValueAtTime(0.2, audioCtx.currentTime + startTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + startTime + duration);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(audioCtx.currentTime + startTime);
+                    osc.stop(audioCtx.currentTime + startTime + duration);
+                }
+                playTone(0, 0.2);
+                playTone(0.25, 0.4);
+            } catch (e) {
+                console.log("Audio not supported");
+            }
+        }
+
+        function updateTimerDisplay() {
+            let minutes = Math.floor(timeLeft / 60);
+            let seconds = timeLeft % 60;
+            document.getElementById('timerDisplay').innerText = 
+                String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
+        }
+
+        function changeTimeFromSlider() {
+            if (timerId !== null) return;
+            let m = parseInt(document.getElementById('minSlider').value);
+            let s = parseInt(document.getElementById('secSlider').value);
+            
+            document.getElementById('minVal').innerText = m;
+            document.getElementById('secVal').innerText = String(s).padStart(2, '0');
+            
+            initialTime = (m * 60) + s;
+            timeLeft = initialTime;
+            updateTimerDisplay();
+        }
+
+        function startTimer() {
+            if (timerId !== null) return;
+            document.getElementById('settingBox').style.display = 'none';
+            timerId = setInterval(() => {
+                if (timeLeft > 0) {
+                    timeLeft--;
+                    updateTimerDisplay();
+                    if (timeLeft === 0) {
+                        stopTimer();
+                        playWhistle();
+                    }
+                }
+            }, 1000);
+        }
+
+        function stopTimer() {
+            clearInterval(timerId);
+            timerId = null;
+            document.getElementById('settingBox').style.display = 'block';
+        }
+
+        function resetTimer() {
+            stopTimer();
+            timeLeft = initialTime;
+            updateTimerDisplay();
+        }
+
+        let scores = { A: 0, B: 0 };
+
+        function changeScore(team, value) {
+            scores[team] += value;
+            if (scores[team] < 0) scores[team] = 0;
+            document.getElementById('score' + team).innerText = scores[team];
+        }
+
+        function editTeamName(team) {
+            let currentName = document.getElementById('teamName' + team).innerText.replace(' ✏️', '');
+            let newName = prompt('チーム名を入力してください:', currentName);
+            if (newName !== null && newName.trim() !== '') {
+                document.getElementById('teamName' + team).innerText = newName + ' ✏️';
+            }
+        }
+    </script>
+</body>
+</html>
