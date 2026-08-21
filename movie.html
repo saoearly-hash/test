@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>スポーツ動画分析＆比較アプリ</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            background-color: #1a1a1a;
+            color: #fff;
+            margin: 0;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        h2 {
+            font-size: 1.1rem;
+            margin: 5px 0;
+            color: #4CAF50;
+        }
+        .container {
+            width: 100%;
+            max-width: 600px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        /* 動画＆キャンバスを重ねるエリア */
+        .video-wrapper {
+            position: relative;
+            width: 100%;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px solid #444;
+            display: flex;
+            justify-content: center;
+        }
+        video {
+            width: 100%;
+            max-height: 350px;
+            display: block;
+            object-fit: contain;
+        }
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            touch-action: none; /* スマホでのスクロール誤動作防止 */
+        }
+        .controls, .tools, .file-inputs {
+            background: #2a2a2a;
+            padding: 10px;
+            border-radius: 8px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            align-items: center;
+        }
+        button, label.file-btn {
+            font-size: 0.9rem;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            background: #444;
+            color: #fff;
+            text-align: center;
+        }
+        button:active { opacity: 0.7; }
+        .btn-primary { background: #2196F3; }
+        .btn-success { background: #4CAF50; }
+        .btn-danger { background: #f44336; }
+        .btn-warning { background: #ff9800; color: #000; }
+        
+        /* ペンツール設定 */
+        .tool-active { border: 2px solid #fff; }
+        .color-picker {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+        .color-dot {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: 2px solid #fff;
+            cursor: pointer;
+        }
+        input[type="file"] { display: none; }
+        
+        /* 比較モード用のレイアウト */
+        .compare-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+            width: 100%;
+        }
+        @media(min-width: 768px) {
+            .compare-grid { grid-template-columns: 1fr 1fr; max-width: 1000px; }
+        }
+    </style>
+</head>
+<body>
+
+    <h2>🎥 スポーツ動画分析・比較ツール</h2>
+
+    <div class="container">
+        <!-- ファイル選択エリア -->
+        <div class="file-inputs">
+            <label class="file-btn btn-primary">
+                📁 メイン動画を選択/撮影
+                <input type="file" id="videoInput1" accept="video/*" onchange="loadVideo(event, 'video1')">
+            </label>
+            <button class="btn-warning" onclick="toggleCompareMode()">対比モード切替</button>
+        </div>
+
+        <!-- メイン動画プレイヤー -->
+        <div class="compare-grid" id="compareContainer">
+            <div class="video-section">
+                <div class="video-wrapper" id="wrapper1">
+                    <video id="video1" controls playsinline></video>
+                    <canvas id="canvas1"></canvas>
+                </div>
+                <div class="controls">
+                    <button onclick="skipTime('video1', -0.1)">◀ 細かく戻す</button>
+                    <button onclick="skipTime('video1', 0.1)">進める ▶</button>
+                    <button class="btn-success" onclick="takeSnapshot('video1')">📷 スクショ保存</button>
+                </div>
+            </div>
+
+            <!-- 比較用動画プレイヤー（初期は非表示） -->
+            <div class="video-section" id="subVideoSection" style="display: none;">
+                <div class="file-inputs" style="margin-bottom: 5px; background:none; padding:0;">
+                    <label class="file-btn btn-primary" style="font-size:0.8rem; padding:5px 10px;">
+                        📁 比較用動画を選択
+                        <input type="file" id="videoInput2" accept="video/*" onchange="loadVideo(event, 'video2')">
+                    </label>
+                </div>
+                <div class="video-wrapper" id="wrapper2">
+                    <video id="video2" controls playsinline></video>
+                </div>
+                <div class="controls">
+                    <button onclick="skipTime('video2', -0.1)">◀ 細かく戻す</button>
+                    <button onclick="skipTime('video2', 0.1)">進める ▶</button>
+                    <button class="btn-success" onclick="syncPlay()">🔗 同時再生</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- お絵描きコントロールパネル -->
+        <div class="tools">
+            <span style="font-size: 0.85rem;">✏️ 描画:</span>
+            <div class="color-dot" style="background: red;" onclick="setPenColor('red')"></div>
+            <div class="color-dot" style="background: yellow;" onclick="setPenColor('yellow')"></div>
+            <div class="color-dot" style="background: cyan;" onclick="setPenColor('cyan')"></div>
+            <button id="eraserBtn" class="btn-warning" onclick="setEraser()">消しゴム</button>
+            <button class="btn-danger" onclick="clearCanvas()">全消去</button>
+        </div>
+    </div>
+
+    <!-- スクリーンショット保存用の非表示キャンバス -->
+    <canvas id="exportCanvas" style="display:none;"></canvas>
+
+    <script>
+        // 動画読み込み処理
+        function loadVideo(event, videoId) {
+            const file = event.target.files[0];
+            if (file) {
+                const url = URL.createObjectURL(file);
+                const video = document.getElementById(videoId);
+                video.src = url;
+                video.load();
+                if(videoId === 'video1') {
+                    setTimeout(initCanvas, 200); // 動画のサイズにキャンバスを合わせる
+                }
+            }
+        }
+
+        // コマ送り・巻き戻し
+        function skipTime(videoId, seconds) {
+            const video = document.getElementById(videoId);
+            video.currentTime += seconds;
+        }
+
+        // 比較モードの切り替え
+        function toggleCompareMode() {
+            const sub = document.getElementById('subVideoSection');
+            if (sub.style.display === 'none') {
+                sub.style.display = 'block';
+            } else {
+                sub.style.display = 'none';
+            }
+        }
+
+        // 2つの動画を同時に再生・一時停止
+        function syncPlay() {
+            const v1 = document.getElementById('video1');
+            const v2 = document.getElementById('video2');
+            if (v1.paused) {
+                v1.play();
+                v2.play();
+            } else {
+                v1.pause();
+                v2.pause();
+            }
+        }
+
+        // --- お絵描き（キャンバス）機能 ---
+        const canvas = document.getElementById('canvas1');
+        const ctx = canvas.getContext('2d');
+        let drawing = false;
+        let penColor = 'red';
+        let isEraser = false;
+
+        function initCanvas() {
+            const video = document.getElementById('video1');
+            canvas.width = video.videoWidth || 640;
+            canvas.height = video.videoHeight || 360;
+            ctx.lineWidth = Math.max(canvas.width / 150, 4);
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+        }
+
+        function setPenColor(color) {
+            penColor = color;
+            isEraser = false;
+            document.getElementById('eraserBtn').classList.remove('tool-active');
+        }
+
+        function setEraser() {
+            isEraser = true;
+            document.getElementById('eraserBtn').classList.add('tool-active');
+        }
+
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // タッチ＆マウス操作のバインド
+        function getPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return {
+                x: (clientX - rect.left) * (canvas.width / rect.width),
+                y: (clientY - rect.top) * (canvas.height / rect.height)
+            };
+        }
+
+        canvas.addEventListener('mousedown', startDraw);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDraw);
+        canvas.addEventListener('touchstart', startDraw);
+        canvas.addEventListener('touchmove', draw);
+        canvas.addEventListener('touchend', stopDraw);
+
+        function startDraw(e) {
+            drawing = true;
+            const pos = getPos(e);
+            ctx.beginPath();
+            ctx.moveTo(pos.x, pos.y);
+            e.preventDefault();
+        }
+
+        function draw(e) {
+            if (!drawing) return;
+            const pos = getPos(e);
+            if (isEraser) {
+                ctx.clearRect(pos.x - 15, pos.y - 15, 30, 30);
+            } else {
+                ctx.strokeStyle = penColor;
+                ctx.lineTo(pos.x, pos.y);
+                ctx.stroke();
+            }
+            e.preventDefault();
+        }
+
+        function stopDraw() {
+            drawing = false;
+        }
+
+        // --- スクリーンショット（動画＋描画の合成保存） ---
+        function takeSnapshot() {
+            const video = document.getElementById('video1');
+            const exportCanvas = document.getElementById('exportCanvas');
+            const expCtx = exportCanvas.getContext('2d');
+
+            exportCanvas.width = canvas.width;
+            exportCanvas.height = canvas.height;
+
+            // 動画の現在のフレームを描画
+            expCtx.drawImage(video, 0, 0, exportCanvas.width, exportCanvas.height);
+            // その上に描画した線・イラストを重ねて描画
+            expCtx.drawImage(canvas, 0, 0);
+
+            // 画像としてダウンロード（スマホなら長押し保存可能）
+            const dataURL = exportCanvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.download = 'sports_analysis.png';
+            link.href = dataURL;
+            link.click();
+        }
+    </script>
+</body>
+</html>
