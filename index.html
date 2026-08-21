@@ -70,11 +70,19 @@
         .btn-start { background-color: #4CAF50; color: white; }
         .btn-stop { background-color: #f44336; color: white; }
         .btn-reset { background-color: #777; color: white; }
+        
+        .scoreboard-wrapper {
+            width: 100%;
+            max-width: 500px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
         .scoreboard {
             display: flex;
             justify-content: space-around;
             width: 100%;
-            max-width: 500px;
             gap: 15px;
         }
         .team {
@@ -93,7 +101,7 @@
             padding-bottom: 5px;
         }
         .score {
-            font-size: 5rem;
+            font-size: 4rem;
             font-weight: bold;
             margin: 10px 0;
         }
@@ -103,21 +111,24 @@
             gap: 10px;
         }
         .score-btns button {
-            width: 45px;
-            height: 45px;
+            width: 50px;
+            height: 50px;
             padding: 0;
-            font-size: 1.5rem;
+            font-size: 1.8rem;
             background-color: #333;
             color: white;
             border-radius: 50%;
         }
         .score-btns button.plus { background-color: #2196F3; }
         .score-btns button.minus { background-color: #e91e63; }
-        .reset-score-btn {
-            margin-top: 10px;
-            font-size: 0.8rem;
-            padding: 5px 10px;
-            background-color: #444;
+        
+        .reset-score-all-btn {
+            background-color: #555;
+            color: white;
+            padding: 12px 30px;
+            font-size: 1rem;
+            width: 100%;
+            max-width: 200px;
         }
     </style>
 </head>
@@ -143,25 +154,27 @@
         <button class="btn-reset" onclick="resetTimer()">リセット</button>
     </div>
 
-    <div class="scoreboard">
-        <div class="team" style="border-color: #2196F3;">
-            <h2 id="teamNameA" style="color: #2196F3;" onclick="editTeamName('A')">TEAM A ✏️</h2>
-            <div class="score" id="scoreA">0</div>
-            <div class="score-btns">
-                <button class="minus" onclick="changeScore('A', -1)">-</button>
-                <button class="plus" onclick="changeScore('A', 1)">+</button>
+    <div class="scoreboard-wrapper">
+        <div class="scoreboard">
+            <div class="team" style="border-color: #2196F3;">
+                <h2 id="teamNameA" style="color: #2196F3;" onclick="editTeamName('A')">TEAM A ✏️</h2>
+                <div class="score" id="scoreA">0</div>
+                <div class="score-btns">
+                    <button class="minus" onclick="changeScore('A', -1)">-</button>
+                    <button class="plus" onclick="changeScore('A', 1)">+</button>
+                </div>
             </div>
-            <button class="reset-score-btn" onclick="resetScore('A')">リセット</button>
-        </div>
-        <div class="team" style="border-color: #e91e63;">
-            <h2 id="teamNameB" style="color: #e91e63;" onclick="editTeamName('B')">TEAM B ✏️</h2>
-            <div class="score" id="scoreB">0</div>
-            <div class="score-btns">
-                <button class="minus" onclick="changeScore('B', -1)">-</button>
-                <button class="plus" onclick="changeScore('B', 1)">+</button>
+            <div class="team" style="border-color: #e91e63;">
+                <h2 id="teamNameB" style="color: #e91e63;" onclick="editTeamName('B')">TEAM B ✏️</h2>
+                <div class="score" id="scoreB">0</div>
+                <div class="score-btns">
+                    <button class="minus" onclick="changeScore('B', -1)">-</button>
+                    <button class="plus" onclick="changeScore('B', 1)">+</button>
+                </div>
             </div>
-            <button class="reset-score-btn" onclick="resetScore('B')">リセット</button>
         </div>
+        <!-- 中央にリセットボタンを配置 -->
+        <button class="reset-score-all-btn" onclick="resetAllScores()">得点をリセット</button>
     </div>
 
     <script>
@@ -181,7 +194,6 @@
                 if (audioCtx.state === 'suspended') {
                     audioCtx.resume();
                 }
-
                 function playTone(startTime, duration) {
                     const osc = audioCtx.createOscillator();
                     const gain = audioCtx.createGain();
@@ -197,7 +209,6 @@
                 playTone(0, 0.2);
                 playTone(0.25, 0.4);
             }
-
             if ("vibrate" in navigator) {
                 navigator.vibrate([200, 100, 400]);
             }
@@ -214,10 +225,8 @@
             if (timerId !== null) return;
             let m = parseInt(document.getElementById('minSlider').value);
             let s = parseInt(document.getElementById('secSlider').value);
-            
             document.getElementById('minVal').innerText = m;
             document.getElementById('secVal').innerText = String(s).padStart(2, '0');
-            
             initialTime = (m * 60) + s;
             timeLeft = initialTime;
             updateTimerDisplay();
@@ -259,10 +268,11 @@
             document.getElementById('score' + team).innerText = scores[team];
         }
 
-        function resetScore(team) {
-            if (confirm(team + 'チームの得点をリセットしますか？')) {
-                scores[team] = 0;
-                document.getElementById('score' + team).innerText = 0;
+        function resetAllScores() {
+            if (confirm('両チームの得点をリセットしますか？')) {
+                scores = { A: 0, B: 0 };
+                document.getElementById('scoreA').innerText = 0;
+                document.getElementById('scoreB').innerText = 0;
             }
         }
 
